@@ -340,18 +340,9 @@ export default function ResultPage() {
               className="inline-flex justify-center rounded-2xl border border-slate-300 px-6 py-4 text-base font-semibold text-slate-800
             hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 transition"
             >
-              Распечатать результат теста
+              Скачать результат (PDF)
             </button>
-            
-            <button
-              type="button"
-              onClick={handleReset}
-               className="inline-flex justify-center rounded-2xl border border-slate-300 px-6 py-4 text-base font-semibold text-slate-800
-            hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 transition"
-            >
-              Очистить данные и начать заново
-            </button>
-
+          
             <button
               type="button"
               onClick={handleDownloadCsv}
@@ -368,6 +359,15 @@ export default function ResultPage() {
             hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 transition"
             >
               Скачать технические данные (JSON)
+            </button>
+
+            <button
+              type="button"
+              onClick={handleReset}
+               className="inline-flex justify-center rounded-2xl border border-slate-300 px-6 py-4 text-base font-semibold text-slate-800
+            hover:bg-slate-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-slate-900 focus-visible:ring-offset-2 transition"
+            >
+              Очистить данные и начать заново
             </button>
 
           </div>

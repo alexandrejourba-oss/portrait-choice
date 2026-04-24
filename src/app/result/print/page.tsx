@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
 import { useRouter } from "next/navigation";
 import { loadSession } from "@/lib/storage";
 import { factorOrder, buildFactorSummary, calculateSigns } from "@/lib/factors";
@@ -52,27 +55,92 @@ export default function PrintResultPage() {
     );
   }
 
+const generatePDF = async () => {
+  const element = document.getElementById("result");
+
+  if (!element) return;
+
+  // 👉 делаем скролл вверх (иначе мобилки иногда режут)
+  window.scrollTo(0, 0);
+
+ const originalWidth = element.style.width;
+
+ element.style.width = "794px";
+
+ const canvas = await html2canvas(element, {
+  scale: 2, // качество
+  useCORS: true,
+  logging: false,
+ });
+
+
+  const imgData = canvas.toDataURL("image/jpeg", 1.0);
+
+  const pdf = new jsPDF({
+    orientation: "portrait",
+    unit: "mm",
+    format: "a4",
+   });
+
+    
+  const margin = 10; // 👈 поля по 10 мм
+   
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+
+  const usableWidth = pageWidth - margin * 2;
+  const usableHeight = pageHeight - margin * 2;
+
+  const imgWidth = usableWidth;
+  const imgHeight = (canvas.height * pageWidth) / canvas.width;
+
+let position = margin;
+
+if (imgHeight < usableHeight) {
+  pdf.addImage(imgData, "JPEG", margin, margin, imgWidth, imgHeight);
+} else {
+  let heightLeft = imgHeight;
+
+  while (heightLeft > 0) {
+    pdf.addImage(imgData, "JPEG", margin, position, imgWidth, imgHeight);
+
+    heightLeft -= usableHeight;
+    position -= usableHeight;
+
+    if (heightLeft > 0) {
+      pdf.addPage();
+      position = margin;
+    }
+  }
+}
+
+  pdf.save("portrait-choice-selections.pdf");
+
+  element.style.width = originalWidth;
+};
+
   return (
     <main className="min-h-screen bg-white px-4 py-8 sm:px-6 print:px-0 print:py-0">
       <div className="mx-auto max-w-5xl bg-white print:max-w-none">
         <div className="mb-6 flex gap-3 flex-wrap">
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
-          >
-            Печать / PDF
-          </button>
+        <button
+          type="button"
+          onClick={generatePDF}
+          className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-semibold text-white"
+        >
+           Скачать PDF
+        </button>
 
-          <button
+        <button
             type="button"
             onClick={() => {router.push("/result")}}
             className="rounded-2xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-800"
           >
             К результатам
-          </button>
+        </button>
         </div>
 
+        <div id="result">
         <div className="space-y-8 print:space-y-6">
           {/* Шапка */}
           <section className="border-b border-slate-200 pb-6">
@@ -178,7 +246,7 @@ export default function PrintResultPage() {
               </table>
             </div>
           </section>
-
+        </div>
         </div>
       </div>
     </main>
