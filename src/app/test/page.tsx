@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import BottomActionBar from "@/components/BottomActionBar";
@@ -11,18 +11,10 @@ import SelectionStatus from "@/components/SelectionStatus";
 
 import { testConfig } from "@/config/testConfig";
 import { StepMode, TestSession } from "@/types/test";
-
-import {
-  finalizeSession,
-  upsertRoundAnswer
-} from "@/lib/testLogic";
-
-import {
-  loadSession,
-  saveSession
-} from "@/lib/storage";
-
+import { finalizeSession, upsertRoundAnswer } from "@/lib/testLogic";
+import { loadSession, saveSession } from "@/lib/storage";
 import { generateTestData } from "@/lib/testData";
+import { preloadImages } from "@/utils/preloadImages";
 
 export default function TestPage() {
   const router = useRouter();
@@ -33,16 +25,18 @@ export default function TestPage() {
   const [liked, setLiked] = useState<number[]>([]);
   const [disliked, setDisliked] = useState<number[]>([]);
   const [session, setSession] = useState<TestSession | null>(null);
+  const [isRoundReady, setIsRoundReady] = useState(false);
+  const preloadedRoundsRef = useRef<Set<number>>(new Set());
 
   const currentSet = testConfig.stimulusSets.find(
   (s) => s.id === session?.stimulusSet
   );  
-
+  
   // ✅ Генерация теста (один раз)
   const testData = useMemo(() => {
-   if (!session?.stimulusSet) return [];
-   return generateTestData(session.stimulusSet);
-   }, [session?.stimulusSet]);
+    if (!session?.stimulusSet) return [];
+    return generateTestData(session.stimulusSet);
+  }, [session?.stimulusSet]);
 
   // ✅ Инициализация
   useEffect(() => {
@@ -74,9 +68,72 @@ export default function TestPage() {
     setMode("liked");
   }, [roundIndex, mounted]);
 
-  const currentRound = testData[roundIndex];
   const selectedCount = mode === "liked" ? liked.length : disliked.length;
   const canContinue = selectedCount === 2;
+  const rounds = testData; // 👈 ИСТОЧНИК ВСЕХ РАУНДОВ
+  const currentRound = rounds[roundIndex];
+ 
+  
+  // ✅ Предзагрузка изображений раунда
+  useEffect(() => {
+   if (!mounted) return;
+
+   let isActive = true;
+
+  async function load() {
+    if (!currentRound) {
+      // ⚠️ fallback — не блокируем UI
+      setIsRoundReady(true);
+      return;
+    }
+    const roundId = currentRound.id;
+    if (preloadedRoundsRef.current.has(roundId)) {
+      setIsRoundReady(true);
+      return;
+    }
+    setIsRoundReady(false);
+    try {
+      const srcList = currentRound.images.map((img) => img.src);
+
+      if (srcList.length === 0) {
+        setIsRoundReady(true);
+        return;
+      }
+      await preloadImages(srcList);
+      preloadedRoundsRef.current.add(roundId);
+      if (isActive) {
+        setIsRoundReady(true);
+      }
+    } catch (e) {
+      // ⚠️ критично: не зависаем
+      setIsRoundReady(true);
+    }
+  }
+
+  load();
+
+  return () => {
+    isActive = false;
+  };
+}, [roundIndex, mounted, currentRound]);
+
+// ✅ Предзагрузка изображений следующего раунда
+useEffect(() => {
+  if (!mounted) return;
+
+  const nextRound = rounds?.[roundIndex + 1];
+  if (!nextRound) return;
+
+  const nextId = nextRound.id;
+
+  if (preloadedRoundsRef.current.has(nextId)) return;
+
+  const srcList = nextRound.images.map((img) => img.src);
+
+  preloadImages(srcList).then(() => {
+    preloadedRoundsRef.current.add(nextId);
+  });
+}, [roundIndex, mounted, rounds]);
 
   const buttonLabel = useMemo(() => {
     if (mode === "liked") return "Продолжить";
@@ -85,8 +142,10 @@ export default function TestPage() {
       : "Следующая серия";
   }, [mode, roundIndex, testData.length]);
 
+
   // ✅ Выбор карточек
   const toggleSelection = (imageId: number) => {
+    if (!isRoundReady) return; // 🚫 БЛОК ДО ЗАГРУЗКИ
     if (mode === "liked") {
       setLiked((prev) => {
         if (prev.includes(imageId)) {
@@ -203,7 +262,7 @@ export default function TestPage() {
         <div className="flex justify-end">
           <button
 	        type="button"
-		    disabled={liked.length === 0 && disliked.length === 0}		
+		        disabled={liked.length === 0 && disliked.length === 0}		
             onClick={handleClear}
             className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700"
           >
@@ -230,29 +289,38 @@ export default function TestPage() {
               dislikedCount={disliked.length}
             />
 
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              {currentRound.images.map((image) => {
-                const selected =
-                  mode === "liked"
-                    ? liked.includes(image.id)
-                    : disliked.includes(image.id);
+            <div className="relative">
+               {!isRoundReady && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-white/70 rounded-2xl">
+                <span className="text-slate-600">Загрузка портретов...</span>
+                </div>
+            )}
+<div
+  className={`grid grid-cols-2 gap-4 sm:grid-cols-4 ${
+    !isRoundReady ? "pointer-events-none opacity-50" : ""
+  }`}
+>
+  {currentRound.images.map((image) => {
+    const selected =
+      mode === "liked"
+        ? liked.includes(image.id)
+        : disliked.includes(image.id);
 
-                const disabled =
-                  mode === "disliked" &&
-                  liked.includes(image.id);
+    const disabled =
+      mode === "disliked" && liked.includes(image.id);
 
-                return (
-                <PortraitCard
-					key={image.id}
-					src={image.src}
-					alt={image.alt}
-					selected={selected}
-					disabled={disabled}
-					onClick={() => toggleSelection(image.id)}
-				/>
-                );
-              })}
-            </div>
+    return (
+      <PortraitCard
+        key={`${currentRound.id}-${image.id}`}
+        src={image.src}
+        alt={image.alt}
+        selected={selected}
+        disabled={disabled}
+        onClick={() => toggleSelection(image.id)}
+      />
+    );
+  })}
+</div>
 
           </div>
         </div>
@@ -263,6 +331,7 @@ export default function TestPage() {
         label={buttonLabel}
         onClick={handleContinue}
       />
+      </div>
     </main>
   );
 }
