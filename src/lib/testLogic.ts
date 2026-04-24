@@ -3,6 +3,7 @@ import { getFactorByImage } from "@/lib/factors";
 
 export function createEmptySession(): TestSession {
   return {
+    id: createSessionId(),
     test: "portrait-choice",
     startedAt: new Date().toISOString(),
     currentRoundIndex: 0,
@@ -147,4 +148,14 @@ export function updateParticipantMeta(
     participantCode: meta.participantCode ?? session.participantCode,
     participantNote: meta.participantNote ?? session.participantNote,
   };
+}
+
+export function createSessionId() {
+  const ts = Date.now();
+  const rand = Math.random().toString(36).slice(2, 6);
+  return `${ts}_${rand}`;
+}
+
+export function getResultBaseName(session: TestSession) {
+  return `test_${session.id}`;
 }

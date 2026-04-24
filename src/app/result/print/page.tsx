@@ -8,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { loadSession } from "@/lib/storage";
 import { factorOrder, buildFactorSummary, calculateSigns } from "@/lib/factors";
 import { TestSession } from "@/types/test";
+import { getResultBaseName } from "@/lib/testLogic";
 
 function formatDate(date?: string) {
   if (!date) return "—";
@@ -56,6 +57,8 @@ export default function PrintResultPage() {
   }
 
 const generatePDF = async () => {
+  
+  const baseName = getResultBaseName(session);
   const element = document.getElementById("result");
 
   if (!element) return;
@@ -114,7 +117,7 @@ if (imgHeight < usableHeight) {
   }
 }
 
-  pdf.save("portrait-choice-selections.pdf");
+  pdf.save(`${baseName}.pdf`);
 
   element.style.width = originalWidth;
 };

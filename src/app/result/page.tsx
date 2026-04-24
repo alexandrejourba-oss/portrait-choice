@@ -7,6 +7,7 @@ import { downloadJson } from "@/lib/download";
 import { clearSession, loadSession, saveSession } from "@/lib/storage";
 import {
   buildDetailedResult,
+  getResultBaseName,
   portraitSelectionsToCsv,
   updateParticipantMeta,
 } from "@/lib/testLogic";
@@ -18,6 +19,7 @@ export default function ResultPage() {
   const [showJson, setShowJson] = useState(false);
   const [participantCode, setParticipantCode] = useState("");
   const [participantNote, setParticipantNote] = useState("");
+  const [baseName, setBaseName] = useState("");
   const router = useRouter();
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export default function ResultPage() {
     if (loaded) {
       setParticipantCode(loaded.participantCode ?? "");
       setParticipantNote(loaded.participantNote ?? "");
+      setBaseName(getResultBaseName(loaded));
     }
   }, []);
 
@@ -80,7 +83,7 @@ export default function ResultPage() {
       summasigns: calculateSigns(buildFactorSummary(session))
     };
 
-    downloadJson("portrait-choice-results.json", exportData);
+    downloadJson(`${baseName}.json`, exportData);
   };
 
   const handleDownloadCsv = () => {
@@ -96,7 +99,7 @@ export default function ResultPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = "portrait-choice-selections.csv";
+    a.download = `${baseName}.csv`;
     a.click();
 
     URL.revokeObjectURL(url);
@@ -107,7 +110,7 @@ export default function ResultPage() {
     router.push("/")
   };
  
-  return (
+   return (
     <main className="min-h-screen px-4 py-10 sm:px-6">
       <div className="mx-auto max-w-5xl rounded-3xl bg-white p-6 shadow-sm sm:p-10">
         <div className="space-y-8">

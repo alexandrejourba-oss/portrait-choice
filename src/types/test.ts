@@ -28,6 +28,7 @@ export type TestConfig = {
 };
 
 export type TestSession = {
+  id: string;
   test: string;
   startedAt: string;
   completedAt?: string;
