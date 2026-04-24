@@ -66,6 +66,8 @@ src/
 	testLogic.ts
   types/
     test.ts
+  utils/
+    preloadImages.ts
 public/
   set1/
     round1/
